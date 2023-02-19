@@ -25,8 +25,9 @@
 
 :root {
   /* Text properties */
-  --font: 'Libre Baskerville', serif;
-  --code-font: 'Source Code Pro', monospace;
+  /* Use system font stacks instead of webfonts from Google */
+  --font: Iowan Old Style, Apple Garamond, Baskerville, Times New Roman, Droid Serif, Times, Source Serif Pro, serif, Apple Color Emoji, Segoe UI Emoji, Segoe UI Symbol, serif;
+  --code-font: Menlo, Consolas, Monaco, Liberation Mono, Lucida Console, monospace;
   --font-size: 14px;
   --code-font-size: 1em; /* *not* rem, so it follows surrounding font size */
   --line-height: normal;
@@ -36,7 +37,7 @@
   --link-decoration-nav: none;
   --link-decoration-heading: none;
   --nav-brand-case: lowercase;
-  --nav-menu-case: lowercase;
+  --nav-menu-case: none;
   --nav-heading-case: uppercase;
   --nav-categories-case: lowercase;
   --landing-header-case: lowercase;
@@ -45,9 +46,27 @@
   /* Shapes */
   --border-radius: 0.2rem;
 
+  /* Calculate colors as per https://una.im/css-color-theming/ */
+  --colorBG-h: 38;
+  --colorBG-s: 47%;
+  --colorBG-l: 80%;
+  --lighten-percent: 10%;
+  --darken-percent: 50%;
+  --saturate-percent: 30%;
+  --desaturate-percent: 20%;
+  --triadic1: 120;
+  --triadic2: 240;
+  --colorBG-lighter: calc(var(--colorBG-l) + var(--lighten-percent));
+  --colorBG-darker: calc(var(--colorBG-l) - var(--darken-percent));
+  --colorBG-desaturated: calc(var(--colorBG-s) - var(--desaturate-percent));
+  --colorAccent1-h: calc(var(--colorBG-h) + var(--triadic1));
+  --colorAccent1-s: calc(var(--colorBG-s) + var(--saturate-percent));
+  --colorAccent2-h: calc(var(--colorBG-h) + var(--triadic2));
+  --colorAccent2-s: calc(var(--colorBG-s) + var(--saturate-percent));
+
   /* Basics */
-  --background-color: #ffffff;
-  --color: #000000;
+  --background-color: hsl(var(--colorBG-h), var(--colorBG-s), var(--colorBG-l));
+  --color: #111;
   --line-color: #f7e3db;
   --link-color: #ea7944;
   --link-active-color: #cb4b16;
@@ -66,21 +85,21 @@
 
   /* Header */
   --header-border-width: 0.25rem 0 0 0;
-  --header-color: #000000;
+  --header-color: var(--color);
   --header-breadcrumb-color: #bdbdbd; /* same as --dim-color */
-  --header-background-color: #ffffff;
-  --header-background-color-landing: rgba(255, 255, 255, 0.75);
-  --header-background-color-jumbo: rgba(255, 255, 255, 0.25);
+  --header-background-color: hsl(var(--colorBG-h), var(--colorBG-s), var(--colorBG-lighter));
+  --header-background-color-landing: hsla(var(--colorBG-h), var(--colorBG-s), var(--colorBG-lighter), 0.75);
+  --header-background-color-jumbo: hsla(var(--colorBG-h), var(--colorBG-s), var(--colorBG-lighter), 0.25);
   --header-link-color: #000000;
-  --header-link-active-color: #cb4b16;
-  --header-link-current-color: #ea7944;
+  --header-link-active-color: hsl(var(--colorAccent2-h), var(--colorAccent2-s), 45%);
+  --header-link-current-color: hsl(var(--colorAccent2-h), var(--colorAccent2-s), 55%);
   --header-link-active-background-color: #ffffff;
   --header-link-active-background-color: rgba(255, 255, 255, 0.5);
 
   /* Footer */
   --footer-font-size: 0.85rem;
-  --footer-color: #7c7c7c;
-  --footer-background-color: #eeeeee;
+  --footer-color: hsl(var(--colorAccent1-h), var(--colorAccent1-s), var(--colorBG-l));
+  --footer-background-color: hsl(var(--colorBG-h), var(--colorBG-desaturated), var(--colorBG-darker));
   --footer-link-color: #191919;
   --footer-link-active-color: #494949;
 
