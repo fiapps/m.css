@@ -26,27 +26,16 @@
 */
 :root {
   --colorBG-h: 38;
-:root {
   --colorBG-s: 47%;
-:root {
   --colorBG-l: 80%;
-:root {
   --triadic1: 120;
-:root {
   --triadic2: 240;
-:root {
   --colorBG-lighter: calc(var(--colorBG-l) + 10%);
-:root {
   --colorBG-darker: calc(var(--colorBG-l) - 50%);
-:root {
   --colorBG-desaturated: calc(var(--colorBG-s) - 20%);
-:root {
   --colorAccent1-h: calc(var(--colorBG-h) + var(--triadic1));
-:root {
   --colorAccent1-s: calc(var(--colorBG-s) + 30%);
-:root {
   --colorAccent2-h: calc(var(--colorBG-h) + var(--triadic2));
-:root {
   --colorAccent2-s: calc(var(--colorBG-s) + 30%);
 }
 
