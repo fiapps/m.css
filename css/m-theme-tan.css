@@ -1,5 +1,6 @@
 /*
-    This file is part of m.css.
+    This file is based on m.css/css/m-theme-light.css, which is
+    under the following license.
 
     Copyright © 2017, 2018, 2019, 2020, 2021, 2022
               Vladimír Vondruš <mosra@centrum.cz>
@@ -67,9 +68,9 @@
   /* Basics */
   --background-color: hsl(var(--colorBG-h), var(--colorBG-s), var(--colorBG-l));
   --color: #111;
-  --line-color: #f7e3db;
-  --link-color: #ea7944;
-  --link-active-color: #cb4b16;
+  --line-color: hsl(var(--colorBG-h), var(--colorBG-desaturated), var(--colorBG-darker)); /* == --footer-bg-color */
+  --link-color: hsl(var(--colorAccent2-h), var(--colorAccent2-s), 40%);
+  --link-active-color: hsl(var(--colorAccent2-h), var(--colorAccent2-s), 55%);
   --mark-color: #4c93d3;
   --mark-background-color: #e6e69c;
   --code-color: #5b5b5b;
