@@ -1591,7 +1591,7 @@ div.m-plot svg .m-bar.m-dim,
 p, ul, ol, dl, blockquote, pre, .m-code-figure, .m-console-figure, hr, .m-note,
 .m-frame, .m-block, div.m-button, div.m-scroll, table.m-table, div.m-image,
 img.m-image, svg.m-image, figure.m-figure, .m-imagegrid, div.m-math,
-div.m-graph, div.m-plot {
+div.m-graph, div.m-plot, nav.toc {
   margin-bottom: 1rem;
 }
 p:last-child, p.m-nopadb, ul:last-child, ul.m-nopadb,
