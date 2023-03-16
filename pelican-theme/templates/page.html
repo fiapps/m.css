@@ -118,6 +118,9 @@
         {% if page.content %}
 <!-- content -->
 {% block page_content -%}
+  {% if page.include_toc %}
+  {{ page.toc }}
+  {% endif %}
   {{- page.content|trim }}
 {% endblock %}
 <!-- /content -->
