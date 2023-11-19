@@ -3,7 +3,7 @@
 /*
     This file is part of m.css.
 
-    Copyright © 2017, 2018, 2019, 2020, 2021, 2022
+    Copyright © 2017, 2018, 2019, 2020, 2021, 2022, 2023
               Vladimír Vondruš <mosra@centrum.cz>
 
     Permission is hereby granted, free of charge, to any person obtaining a
@@ -2044,7 +2044,7 @@ body > footer > nav {
   background-color: hsl(var(--colorBG-h), var(--colorBG-desaturated), var(--colorBG-darker));
 }
 body > footer > nav h3, body > footer > nav h3 a {
-  text-transform: uppercase;
+  text-transform: none;
   font-weight: normal;
 }
 body > footer > nav ul {
@@ -2055,10 +2055,10 @@ body > footer > nav ul {
 body > footer > nav a {
   text-decoration: none;
   text-transform: none;
-  color: #191919;
+  color: hsl(var(--colorAccent1-h), var(--colorAccent1-s), var(--colorBG-lighter));
 }
 body > footer > nav a:hover, body > footer > nav a:focus, body > footer > nav a:active {
-  color: #494949;
+  color: hsl(var(--colorAccent1-h), var(--colorAccent1-s), 100%);
 }
 body > main {
   padding-top: 1rem;
@@ -2226,7 +2226,7 @@ article#m-jumbo.m-inverted > header a:hover, article#m-jumbo.m-inverted > header
 .m-landing-news h3 a {
   color: #111;
   text-decoration: none;
-  text-transform: uppercase;
+  text-transform: none;
 }
 .m-landing-news h3 a:hover, .m-landing-news h3 a:hover, .m-landing-news h3 a:focus, .m-landing-news h3 a:active {
   color: #cb4b16;
@@ -2244,7 +2244,7 @@ nav.m-navpanel {
   text-align: center;
 }
 nav.m-navpanel h3 {
-  text-transform: uppercase;
+  text-transform: none;
   font-weight: normal;
 }
 nav.m-navpanel ol {

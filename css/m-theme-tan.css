@@ -39,7 +39,7 @@
   --link-decoration-heading: none;
   --nav-brand-case: lowercase;
   --nav-menu-case: none;
-  --nav-heading-case: uppercase;
+  --nav-heading-case: none;
   --nav-categories-case: lowercase;
   --landing-header-case: lowercase;
   --heading-font-weight: normal;
@@ -101,8 +101,8 @@
   --footer-font-size: 0.85rem;
   --footer-color: hsl(var(--colorAccent1-h), var(--colorAccent1-s), var(--colorBG-l));
   --footer-background-color: hsl(var(--colorBG-h), var(--colorBG-desaturated), var(--colorBG-darker));
-  --footer-link-color: #191919;
-  --footer-link-active-color: #494949;
+  --footer-link-color: hsl(var(--colorAccent1-h), var(--colorAccent1-s), var(--colorBG-lighter));
+  --footer-link-active-color: hsl(var(--colorAccent1-h), var(--colorAccent1-s), 100%);
 
   /* Cover image */
   --cover-image-background-color: #666666;
