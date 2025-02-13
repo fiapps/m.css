@@ -36,7 +36,7 @@ class Foo:
 
     class UndocumentedInnerEnum(enum.IntFlag):
         FLAG_ONE = 1
-        FLAG_SEVENTEEN = 17
+        FLAG_SIXTEEN = 16
 
     class Subclass:
         """A subclass of Foo"""
@@ -93,8 +93,9 @@ class FooSlots:
 class DerivedException(BaseException):
     """A class deriving from BaseException, which has the weird args getset_descriptor"""
 
-    # Note: once we properly handle properties of base classes, we might want
-    # to import BaseException and add it to __all__ so it gets parsed directly
+    # TODO Once we properly handle properties of base classes, this should not
+    # list any of the base members anymore and should just act as a
+    # verification that indeed nothing leaks.
 
 class Specials:
     """Special class members"""
@@ -123,7 +124,7 @@ MyEnum.ANOTHER.__doc__ = "Another value"
 
 class UndocumentedEnum(enum.IntFlag):
     FLAG_ONE = 1
-    FLAG_SEVENTEEN = 17
+    FLAG_SIXTEEN = 16
 
 def function():
     """A function"""

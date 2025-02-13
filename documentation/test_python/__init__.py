@@ -1,8 +1,9 @@
 #
 #   This file is part of m.css.
 #
-#   Copyright © 2017, 2018, 2019, 2020, 2021, 2022, 2023
+#   Copyright © 2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024, 2025
 #             Vladimír Vondruš <mosra@centrum.cz>
+#   Copyright © 2022 luz paz <luzpaz@pm.me>
 #
 #   Permission is hereby granted, free of charge, to any person obtaining a
 #   copy of this software and associated documentation files (the "Software"),
@@ -35,6 +36,11 @@ from python import run, default_templates, default_config
 
 # https://stackoverflow.com/a/12867228
 _camelcase_to_snakecase = re.compile('((?<=[a-z0-9])[A-Z]|(?!^)[A-Z](?=[a-z]))')
+
+# A copy of the same utility that's in plugins/m/test/__init__.py because
+# distutils is deprecated and alternatives are insane. See there for details.
+def parse_version(string: str):
+    return tuple([int(i) for i in string.split('.')])
 
 # The test files are automatically detected from derived class name and
 # filesystem location. For a `test_inspect.NameMapping` class, it will look
@@ -91,10 +97,10 @@ class BaseTestCase(unittest.TestCase):
     def actual_expected_contents(self, actual, expected = None):
         if not expected: expected = actual
 
-        with open(os.path.join(self.path, expected)) as f:
-            expected_contents = f.read().strip()
+        with open(os.path.join(self.path, 'stubs', expected) if expected.endswith('.pyi') and not expected.startswith('../') else os.path.join(self.path, expected)) as f:
+            expected_contents = f.read()
         with open(os.path.join(self.path, 'output', actual)) as f:
-            actual_contents = f.read().strip()
+            actual_contents = f.read()
         return actual_contents, expected_contents
 
 # On top of the automagic of BaseTestCase this automatically sets INPUT_MODULES
@@ -111,3 +117,27 @@ class BaseInspectTestCase(BaseTestCase):
             config_overrides = config
 
         BaseTestCase.run_python(self, config_overrides, templates)
+
+    def run_python_stubs(self, config_overrides={}, templates=default_templates):
+        # Defaults that make sense for stub-only tests
+        config = copy.deepcopy(default_config)
+        config.update({
+            'FINE_PRINT': None,
+            'THEME_COLOR': None,
+            'FAVICON': None,
+            'LINKS_NAVBAR1': [],
+            'LINKS_NAVBAR2': [],
+            'SEARCH_DISABLED': True,
+            'OUTPUT': None,
+            'OUTPUT_STUBS': os.path.join(self.path, 'output'),
+            'STUB_HEADER': ''
+        })
+
+        if 'INPUT_MODULES' not in config_overrides:
+            sys.path.append(self.path)
+            config['INPUT_MODULES'] = [self.dirname]
+
+        # Update it with config overrides
+        config.update(config_overrides)
+
+        run(self.path, config, templates=templates)

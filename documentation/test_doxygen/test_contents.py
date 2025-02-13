@@ -1,7 +1,7 @@
 #
 #   This file is part of m.css.
 #
-#   Copyright © 2017, 2018, 2019, 2020, 2021, 2022, 2023
+#   Copyright © 2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024, 2025
 #             Vladimír Vondruš <mosra@centrum.cz>
 #
 #   Permission is hereby granted, free of charge, to any person obtaining a
@@ -25,6 +25,7 @@
 
 import os
 import pickle
+import pygments
 import re
 import shutil
 import subprocess
@@ -32,19 +33,20 @@ import unittest
 
 from hashlib import sha1
 
-from distutils.version import LooseVersion
+from doxygen import EntryType
+from _search import pretty_print, searchdata_filename
 
-from . import BaseTestCase, IntegrationTestCase, doxygen_version
+from . import BaseTestCase, IntegrationTestCase, doxygen_version, parse_version
 
 def dot_version():
-    return re.match(".*version (?P<version>\d+\.\d+\.\d+).*", subprocess.check_output(['dot', '-V'], stderr=subprocess.STDOUT).decode('utf-8').strip()).group('version')
+    return re.match(r'.*version (?P<version>\d+\.\d+\.\d+).*', subprocess.check_output(['dot', '-V'], stderr=subprocess.STDOUT).decode('utf-8').strip()).group('version')
 
 class Typography(IntegrationTestCase):
     def test(self):
         self.run_doxygen(wildcard='indexpage.xml')
         self.assertEqual(*self.actual_expected_contents('index.html'))
 
-    @unittest.skipUnless(LooseVersion(doxygen_version()) > LooseVersion("1.8.17"), "new features in 1.8.17")
+    @unittest.skipUnless(parse_version(doxygen_version()) > parse_version("1.8.17"), "new features in 1.8.17")
     def test_1817(self):
         self.run_doxygen(wildcard='doxygen1817.xml')
         self.assertEqual(*self.actual_expected_contents('doxygen1817.html'))
@@ -56,7 +58,7 @@ class Blocks(IntegrationTestCase):
         # Multiple xrefitems should be merged into one
         self.assertEqual(*self.actual_expected_contents('File_8h.html'))
 
-    @unittest.skipUnless(LooseVersion(doxygen_version()) > LooseVersion("1.8.18"), "new features in 1.8.18")
+    @unittest.skipUnless(parse_version(doxygen_version()) > parse_version("1.8.18"), "new features in 1.8.18")
     def test_1818(self):
         self.run_doxygen(wildcard='*.xml')
         self.assertEqual(*self.actual_expected_contents('doxygen1818.html'))
@@ -64,16 +66,16 @@ class Blocks(IntegrationTestCase):
     def test_xrefitem(self):
         self.run_doxygen(wildcard='*.xml')
 
-        if LooseVersion(doxygen_version()) > LooseVersion("1.8.14"):
+        if parse_version(doxygen_version()) > parse_version("1.8.14"):
             self.assertEqual(*self.actual_expected_contents('todo.html'))
         # https://github.com/doxygen/doxygen/pull/6587 fucking broke this
         else:
             self.assertEqual(*self.actual_expected_contents('todo.html', 'todo_1814.html'))
 
         # 1.8.18 to 1.8.20 has a different order, not sure why
-        if LooseVersion(doxygen_version()) >= LooseVersion("1.8.18") and LooseVersion(doxygen_version()) < LooseVersion("1.9.0"):
+        if parse_version(doxygen_version()) >= parse_version("1.8.18") and parse_version(doxygen_version()) < parse_version("1.9.0"):
             self.assertEqual(*self.actual_expected_contents('old.html', 'old_1818.html'))
-        elif LooseVersion(doxygen_version()) > LooseVersion("1.8.14"):
+        elif parse_version(doxygen_version()) > parse_version("1.8.14"):
             self.assertEqual(*self.actual_expected_contents('old.html'))
         else:
             self.assertEqual(*self.actual_expected_contents('old.html', 'old_1814.html'))
@@ -86,13 +88,24 @@ class Internal(IntegrationTestCase):
 class Code(IntegrationTestCase):
     def test(self):
         self.run_doxygen(wildcard='indexpage.xml')
-        self.assertEqual(*self.actual_expected_contents('index.html'))
+
+        # Pygments 2.10+ properly highlight Whitespace as such, and not as
+        # Text
+        if parse_version(pygments.__version__) >= parse_version("2.10"):
+            self.assertEqual(*self.actual_expected_contents('index.html'))
+        else:
+            self.assertEqual(*self.actual_expected_contents('index.html', 'index-pygments29.html'))
 
     def test_warnings(self):
         with self.assertLogs() as cm:
             self.run_doxygen(wildcard='warnings.xml')
 
-        self.assertEqual(*self.actual_expected_contents('warnings.html'))
+        # Pygments 2.10+ properly highlight Whitespace as such, and not as
+        # Text
+        if parse_version(pygments.__version__) >= parse_version("2.10"):
+            self.assertEqual(*self.actual_expected_contents('warnings.html'))
+        else:
+            self.assertEqual(*self.actual_expected_contents('warnings.html', 'warnings-pygments29.html'))
         self.assertEqual(cm.output, [
             "WARNING:root:warnings.xml: no filename attribute in <programlisting>, assuming C++",
             "WARNING:root:warnings.xml: inline code has multiple lines, fallback to a code block",
@@ -100,19 +113,27 @@ class Code(IntegrationTestCase):
         ])
 
 class CodeLanguage(IntegrationTestCase):
-    @unittest.skipUnless(LooseVersion(doxygen_version()) > LooseVersion("1.8.13"),
+    @unittest.skipUnless(parse_version(doxygen_version()) > parse_version("1.8.13"),
                          "https://github.com/doxygen/doxygen/pull/621")
     def test(self):
         self.run_doxygen(wildcard='indexpage.xml')
-        self.assertEqual(*self.actual_expected_contents('index.html'))
 
-    @unittest.skipUnless(LooseVersion(doxygen_version()) > LooseVersion("1.8.13"),
+        # Pygments 2.10+ properly highlight Whitespace as such, and not as
+        # Text. Pygments 2.14+ further improve on that.
+        if parse_version(pygments.__version__) >= parse_version("2.14"):
+            self.assertEqual(*self.actual_expected_contents('index.html'))
+        elif parse_version(pygments.__version__) >= parse_version("2.10"):
+            self.assertEqual(*self.actual_expected_contents('index.html', 'index-pygments213.html'))
+        else:
+            self.assertEqual(*self.actual_expected_contents('index.html', 'index-pygments29.html'))
+
+    @unittest.skipUnless(parse_version(doxygen_version()) > parse_version("1.8.13"),
                          "https://github.com/doxygen/doxygen/pull/623")
     def test_ansi(self):
         self.run_doxygen(wildcard='ansi.xml')
         self.assertEqual(*self.actual_expected_contents('ansi.html'))
 
-    @unittest.skipUnless(LooseVersion(doxygen_version()) > LooseVersion("1.8.13"),
+    @unittest.skipUnless(parse_version(doxygen_version()) > parse_version("1.8.13"),
                          "https://github.com/doxygen/doxygen/pull/621")
     def test_warnings(self):
         with self.assertLogs() as cm:
@@ -128,7 +149,14 @@ class CodeLanguage(IntegrationTestCase):
 class Image(IntegrationTestCase):
     def test(self):
         self.run_doxygen(wildcard='indexpage.xml')
-        self.assertEqual(*self.actual_expected_contents('index.html'))
+
+        # Versions before 1.9.1(?) don't have the alt attribute preserved for
+        # <img>
+        if parse_version(doxygen_version()) >= parse_version("1.9.1"):
+            self.assertEqual(*self.actual_expected_contents('index.html'))
+        else:
+            self.assertEqual(*self.actual_expected_contents('index.html', 'index-1820.html'))
+
         self.assertTrue(os.path.exists(os.path.join(self.path, 'html', 'tiny.png')))
 
     def test_warnings(self):
@@ -140,7 +168,7 @@ class Image(IntegrationTestCase):
             "WARNING:root:warnings.xml: image nonexistent.png was not found in XML_OUTPUT"
         ])
 
-    @unittest.skipUnless(LooseVersion(doxygen_version()) > LooseVersion("1.8.15"),
+    @unittest.skipUnless(parse_version(doxygen_version()) > parse_version("1.8.15"),
                          "fully fixed after 1.8.15")
     def test_imagelink(self):
         self.run_doxygen(wildcard='imagelink.xml')
@@ -159,12 +187,22 @@ class Math(IntegrationTestCase):
         with self.assertRaises(subprocess.CalledProcessError) as context:
             self.run_doxygen(wildcard='error.xml')
 
+class MathCodeFallback(IntegrationTestCase):
+    def test(self):
+        self.run_doxygen(wildcard='indexpage.xml')
+
+        # Doxygen 1.9.8+ (or maybe earlier? 1.9.1 not yet) changes the spacing,
+        if parse_version(doxygen_version()) >= parse_version("1.9.8"):
+            self.assertEqual(*self.actual_expected_contents('index.html'))
+        else:
+            self.assertEqual(*self.actual_expected_contents('index.html', 'index-191.html'))
+
 class MathCached(IntegrationTestCase):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
         # Actually generated from $ \frac{\tau}{2} $ tho
-        self.tau_half_hash = sha1("""$ \pi $""".encode('utf-8')).digest()
+        self.tau_half_hash = sha1(r"""$ \pi $""".encode('utf-8')).digest()
         self.tau_half = """<?xml version='1.0' encoding='UTF-8'?>
 <!-- This file was generated by dvisvgm 2.6.3 -->
 <svg version='1.1' xmlns='http://www.w3.org/2000/svg' xmlns:xlink='http://www.w3.org/1999/xlink' width='5.847936pt' height='15.326665pt' viewBox='1.195514 -8.1387 4.678349 12.261332'>
@@ -179,7 +217,12 @@ class MathCached(IntegrationTestCase):
 </g>
 </svg>"""
         # Actually generated from \[ a^3 + b^3 \neq c^3 \] tho
-        self.fermat_hash = sha1("""\[ a^2 + b^2 = c^2 \]""".encode('utf-8')).digest()
+        # Doxygen 1.9.8+ (or maybe earlier? 1.9.1 not yet) changes the spacing,
+        # so have to calculate the hash differently
+        if parse_version(doxygen_version()) >= parse_version("1.9.8"):
+            self.fermat_hash = sha1("""\\[\n    a^2 + b^2 = c^2\n\\]""".encode('utf-8')).digest()
+        else:
+            self.fermat_hash = sha1(r"""\[ a^2 + b^2 = c^2 \]""".encode('utf-8')).digest()
         self.fermat = """<?xml version='1.0' encoding='UTF-8'?>
 <!-- This file was generated by dvisvgm 2.6.3 -->
 <svg version='1.1' xmlns='http://www.w3.org/2000/svg' xmlns:xlink='http://www.w3.org/1999/xlink' width='75.028924pt' height='15.496355pt' viewBox='164.01086 -12.397084 60.023139 12.397084'>
@@ -215,7 +258,11 @@ class MathCached(IntegrationTestCase):
             pickle.dump(math_cache, f)
 
         self.run_doxygen(wildcard='math.xml')
-        self.assertEqual(*self.actual_expected_contents('math.html'))
+        # Same as done above, there's different spacing in 1.9.8+
+        if parse_version(doxygen_version()) >= parse_version("1.9.8"):
+            self.assertEqual(*self.actual_expected_contents('math.html'))
+        else:
+            self.assertEqual(*self.actual_expected_contents('math.html', 'math-197.html'))
 
         # Expect that after the operation the global cache age is bumped,
         # unused entries removed and used entries age bumped as well
@@ -240,7 +287,7 @@ class MathCached(IntegrationTestCase):
         # The file is the same expect for titles of the formulas. Replace them
         # and then compare.
         with open(os.path.join(self.path, 'html', 'math-uncached.html')) as f:
-            actual_contents = f.read().strip().replace('a^3 + b^3 \\neq c^3', 'a^2 + b^2 = c^2').replace('\\frac{\\tau}{2}', '\pi')
+            actual_contents = f.read().strip().replace(r'a^3 + b^3 \neq c^3', 'a^2 + b^2 = c^2').replace(r'\frac{\tau}{2}', r'\pi')
 
         self.assertEqual(actual_contents, expected_contents)
 
@@ -248,9 +295,9 @@ class MathCached(IntegrationTestCase):
         with open(os.path.join(self.path, 'xml/math.cache'), 'rb') as f:
             math_cache_actual = pickle.load(f)
         math_cache_expected = (0, 0, {
-            sha1("$ \\frac{\\tau}{2} $".encode('utf-8')).digest():
+            sha1('$ \frac{\tau}{2} $'.encode('utf-8')).digest():
                 (0, 0.344841, self.tau_half),
-            sha1("\\[ a^3 + b^3 \\neq c^3 \\]".encode('utf-8')).digest():
+            sha1(r'\[ a^3 + b^3 \neq c^3 \]'.encode('utf-8')).digest():
                 (0, 0.0, self.fermat)})
         self.assertEqual(math_cache_actual, math_cache_expected)
 
@@ -267,12 +314,24 @@ class MathCached(IntegrationTestCase):
 class Tagfile(IntegrationTestCase):
     def test(self):
         self.run_doxygen(wildcard='indexpage.xml')
-        self.assertEqual(*self.actual_expected_contents('index.html'))
+
+        # Pygments 2.10+ properly highlight Whitespace as such, and not as
+        # Text
+        if parse_version(pygments.__version__) >= parse_version("2.10"):
+            self.assertEqual(*self.actual_expected_contents('index.html'))
+        else:
+            self.assertEqual(*self.actual_expected_contents('index.html', 'index-pygments29.html'))
 
 class Custom(IntegrationTestCase):
     def test(self):
         self.run_doxygen(wildcard='indexpage.xml')
-        self.assertEqual(*self.actual_expected_contents('index.html'))
+
+        # Pygments 2.10+ properly highlight Whitespace as such, and not as
+        # Text
+        if parse_version(pygments.__version__) >= parse_version("2.10"):
+            self.assertEqual(*self.actual_expected_contents('index.html'))
+        else:
+            self.assertEqual(*self.actual_expected_contents('index.html', 'index-pygments29.html'))
 
     @unittest.skipUnless(shutil.which('latex'),
                          "Math rendering requires LaTeX installed")
@@ -283,9 +342,13 @@ class Custom(IntegrationTestCase):
     def test_dot(self):
         self.run_doxygen(wildcard='dot.xml')
 
-        # Used to be >= 2.44.0, but 2.42.2 appears to have the same output
-        if LooseVersion(dot_version()) >= LooseVersion("2.42.2"):
+        # The damn thing adopted Chrome versioning apparently. No idea if the
+        # output changed in version 7, 8 or 9 already.
+        if parse_version(dot_version()) >= parse_version("10.0"):
             file = 'dot.html'
+        # Used to be >= 2.44.0, but 2.42.2 appears to have the same output
+        elif parse_version(dot_version()) >= parse_version("2.42.2"):
+            file = 'dot-2.html'
         else:
             file = 'dot-240.html'
 
@@ -298,19 +361,29 @@ class AutobriefCppComments(IntegrationTestCase):
 
 class AutobriefBlockquote(IntegrationTestCase):
     def test(self):
-        with self.assertLogs() as cm:
+        # ///> in a brief used to cause a multi-line brief in 1.8.18+, which
+        # caused the whole brief to be discarded with a warning. That's no
+        # longer the case in 1.12, there it's put into the detailed description
+        # instead. Not sure if that changed due to
+        # https://github.com/doxygen/doxygen/issues/10902 or something else in
+        # some earlier version.
+        if parse_version(doxygen_version()) >= (1, 12):
             self.run_doxygen(wildcard='File_8h.xml')
+            self.assertEqual(*self.actual_expected_contents('File_8h.html'))
+        else:
+            with self.assertLogs() as cm:
+                self.run_doxygen(wildcard='File_8h.xml')
 
-        self.assertEqual(*self.actual_expected_contents('File_8h.html'))
-        self.assertEqual(cm.output, [
-            "WARNING:root:File_8h.xml: ignoring brief description containing multiple paragraphs. Please modify your markup to remove any block elements from the following: <blockquote><p>An enum on the right</p></blockquote>"
-        ])
+            self.assertEqual(*self.actual_expected_contents('File_8h.html', 'File_8h-111.html'))
+            self.assertEqual(cm.output, [
+                "WARNING:root:File_8h.xml: ignoring brief description containing multiple paragraphs. Please modify your markup to remove any block elements from the following: <blockquote><p>An enum on the right</p></blockquote>"
+            ])
 
 # JAVADOC_AUTOBRIEF should be nuked from orbit. Or implemented from scratch,
 # properly.
 
 class AutobriefHr(IntegrationTestCase):
-    @unittest.skipUnless(LooseVersion(doxygen_version()) < LooseVersion("1.8.15"),
+    @unittest.skipUnless(parse_version(doxygen_version()) < parse_version("1.8.15"),
                          "1.8.15 doesn't put <hruler> into <briefdescription> anymore")
     def test_1814(self):
         with self.assertLogs() as cm:
@@ -323,7 +396,7 @@ class AutobriefHr(IntegrationTestCase):
             "WARNING:root:namespaceNamespace.xml: JAVADOC_AUTOBRIEF / QT_AUTOBRIEF produced a brief description with block elements. That's not supported, ignoring the whole contents of <hr/>"
         ])
 
-    @unittest.skipUnless(LooseVersion(doxygen_version()) >= LooseVersion("1.8.15"),
+    @unittest.skipUnless(parse_version(doxygen_version()) >= parse_version("1.8.15"),
                          "1.8.15 doesn't put <hruler> into <briefdescription> anymore")
     def test(self):
         # No warnings should be produced here
@@ -346,7 +419,7 @@ class AutobriefMultiline(IntegrationTestCase):
         ])
 
 class AutobriefHeading(IntegrationTestCase):
-    @unittest.skipUnless(LooseVersion(doxygen_version()) < LooseVersion("1.8.15"),
+    @unittest.skipUnless(parse_version(doxygen_version()) < parse_version("1.8.15"),
                          "1.8.15 doesn't put <heading> into <briefdescription> anymore")
     def test_1814(self):
         with self.assertLogs() as cm:
@@ -359,7 +432,7 @@ class AutobriefHeading(IntegrationTestCase):
             "WARNING:root:namespaceNamespace.xml: JAVADOC_AUTOBRIEF / QT_AUTOBRIEF produced a brief description with block elements. That's not supported, ignoring the whole contents of <p>===============</p><h4>The Thing </h4>",
         ])
 
-    @unittest.skipUnless(LooseVersion(doxygen_version()) >= LooseVersion("1.8.15"),
+    @unittest.skipUnless(parse_version(doxygen_version()) >= parse_version("1.8.15"),
                          "1.8.15 doesn't put <heading> into <briefdescription> anymore")
     def test(self):
         # No warnings should be produced here
@@ -368,7 +441,7 @@ class AutobriefHeading(IntegrationTestCase):
         self.assertEqual(*self.actual_expected_contents('namespaceNamespace.html'))
 
 class BriefMultilineIngroup(IntegrationTestCase):
-    @unittest.skipUnless(LooseVersion(doxygen_version()) < LooseVersion("1.8.16"),
+    @unittest.skipUnless(parse_version(doxygen_version()) < parse_version("1.8.16"),
         "1.8.16 doesn't merge adjacent paragraphs into brief in presence of an @ingroup anymore")
     def test_1815(self):
         with self.assertLogs() as cm:
@@ -379,7 +452,7 @@ class BriefMultilineIngroup(IntegrationTestCase):
             "WARNING:root:group__thatgroup.xml: ignoring brief description containing multiple paragraphs. Please modify your markup to remove any block elements from the following: <p>Function that's in a group</p><p>Lines of detailed description that get merged to the brief for no freaking reason.</p>"
         ])
 
-    @unittest.skipUnless(LooseVersion(doxygen_version()) >= LooseVersion("1.8.16"),
+    @unittest.skipUnless(parse_version(doxygen_version()) >= parse_version("1.8.16"),
         "1.8.16 doesn't merge adjacent paragraphs into brief in presence of an @ingroup anymore")
     def test(self):
         # No warnings should be produced here
@@ -405,19 +478,48 @@ class SectionsHeadings(IntegrationTestCase):
         with self.assertLogs() as cm:
             self.run_doxygen(wildcard='*arnings*.xml')
 
-        self.assertEqual(*self.actual_expected_contents('warnings.html'))
-        self.assertEqual(*self.actual_expected_contents('Warnings_8h.html'))
-        self.assertEqual(cm.output, [
-            "WARNING:root:Warnings_8h.xml: more than three levels of sections in member descriptions are not supported, stopping at <h6>",
-            "WARNING:root:Warnings_8h.xml: a Markdown heading underline was apparently misparsed by Doxygen, prefix the headings with # instead",
-            "WARNING:root:warnings.xml: more than five levels of Markdown headings for top-level docs are not supported, stopping at <h6>",
-            "WARNING:root:warnings.xml: a Markdown heading underline was apparently misparsed by Doxygen, prefix the headings with # instead",
-        ])
+        # https://github.com/doxygen/doxygen/issues/11016, merged into 1.12, is
+        # responsible I think. It got better, yes.
+        if parse_version(doxygen_version()) >= (1, 11):
+            page = 'warnings.html'
+            file = 'Warnings_8h.html'
+            output = [
+                # Once for every extra level
+                "WARNING:root:Warnings_8h.xml: more than three levels of sections in member descriptions are not supported, stopping at <h6>",
+                "WARNING:root:Warnings_8h.xml: more than three levels of sections in member descriptions are not supported, stopping at <h6>",
+                "WARNING:root:Warnings_8h.xml: more than three levels of sections in member descriptions are not supported, stopping at <h6>",
+                "WARNING:root:warnings.xml: more than five levels of sections are not supported, stopping at <h6>",
+            ]
+        else:
+            page = 'warnings-110.html'
+            file = 'Warnings_8h-110.html'
+            output = [
+                # Once for the first extra level, then two more for another
+                "WARNING:root:Warnings_8h.xml: more than three levels of sections in member descriptions are not supported, stopping at <h6>",
+                'WARNING:root:Warnings_8h.xml: more than three levels of Markdown headings in member descriptions are not supported, stopping at <h6>',
+                'WARNING:root:Warnings_8h.xml: more than three levels of Markdown headings in member descriptions are not supported, stopping at <h6>',
+                "WARNING:root:Warnings_8h.xml: a Markdown heading underline was apparently misparsed by Doxygen, prefix the headings with # instead",
+                "WARNING:root:warnings.xml: more than five levels of Markdown headings for top-level docs are not supported, stopping at <h6>",
+                "WARNING:root:warnings.xml: a Markdown heading underline was apparently misparsed by Doxygen, prefix the headings with # instead",
+            ]
+
+        self.assertEqual(*self.actual_expected_contents('warnings.html', page))
+        self.assertEqual(*self.actual_expected_contents('Warnings_8h.html', file))
+        self.assertEqual(cm.output, output)
 
 class AnchorInBothGroupAndNamespace(IntegrationTestCase):
     def test(self):
         self.run_doxygen(wildcard='*.xml')
-        self.assertEqual(*self.actual_expected_contents('namespaceFoo.html'))
+
+        # The change in https://github.com/doxygen/doxygen/issues/8790 is
+        # stupid because the XML is no longer self-contained. I refuse to
+        # implement parsing of nested XMLs, so the output will lack some
+        # members if groups are used.
+        if parse_version(doxygen_version()) >= parse_version("1.9.7"):
+            self.assertEqual(*self.actual_expected_contents('namespaceFoo.html', 'namespaceFoo-stupid.html'))
+        else:
+            self.assertEqual(*self.actual_expected_contents('namespaceFoo.html'))
+
         self.assertEqual(*self.actual_expected_contents('group__fizzbuzz.html'))
 
 class AnchorHtmlNoPrefixBug(IntegrationTestCase):
@@ -445,15 +547,19 @@ class Dot(IntegrationTestCase):
     def test(self):
         self.run_doxygen(wildcard='indexpage.xml')
 
-        # Used to be >= 2.44.0, but 2.42.2 appears to have the same output
-        if LooseVersion(dot_version()) >= LooseVersion("2.42.2"):
+        # The damn thing adopted Chrome versioning apparently. No idea if the
+        # output changed in version 7, 8 or 9 already.
+        if parse_version(dot_version()) >= parse_version("10.0"):
             file = 'index.html'
+        # Used to be >= 2.44.0, but 2.42.2 appears to have the same output
+        elif parse_version(dot_version()) >= parse_version("2.42.2"):
+            file = 'index-2.html'
         else:
             file = 'index-240.html'
 
         self.assertEqual(*self.actual_expected_contents('index.html', file))
 
-    @unittest.skipUnless(LooseVersion(doxygen_version()) >= LooseVersion("1.8.16"),
+    @unittest.skipUnless(parse_version(doxygen_version()) >= parse_version("1.8.16"),
         "1.8.16+ drops the whole <dotfile> tag if the file doesn't exist, which is incredibly dumb")
     def test_warnings(self):
         # No warnings should be produced here
@@ -461,7 +567,7 @@ class Dot(IntegrationTestCase):
         self.run_doxygen(wildcard='warnings.xml')
         self.assertEqual(*self.actual_expected_contents('warnings.html'))
 
-    @unittest.skipUnless(LooseVersion(doxygen_version()) < LooseVersion("1.8.16"),
+    @unittest.skipUnless(parse_version(doxygen_version()) < parse_version("1.8.16"),
         "1.8.16+ drops the whole <dotfile> tag if the file doesn't exist, which is incredibly dumb")
     def test_warnings_1815(self):
         with self.assertLogs() as cm:
@@ -477,7 +583,7 @@ class HtmlonlyHtmlinclude(IntegrationTestCase):
         self.run_doxygen(wildcard='indexpage.xml')
         self.assertEqual(*self.actual_expected_contents('index.html'))
 
-    @unittest.skipUnless(LooseVersion(doxygen_version()) >= LooseVersion("1.8.18"),
+    @unittest.skipUnless(parse_version(doxygen_version()) >= parse_version("1.8.18"),
         "1.8.17 and older doesn't include @htmlonly in XML output")
     def test_htmlonly(self):
         self.run_doxygen(wildcard='html-only.xml')
@@ -503,9 +609,131 @@ class CodeFilters(IntegrationTestCase):
                 'CSS': _add_color_swatch,
             }
         })
-        self.assertEqual(*self.actual_expected_contents('index.html'))
+
+        # Pygments 2.10+ properly highlight Whitespace as such, and not as
+        # Text. Compared to elsewhere, in this case the difference is only with
+        # 2.11+.
+        if parse_version(pygments.__version__) >= parse_version("2.11"):
+            self.assertEqual(*self.actual_expected_contents('index.html'))
+        else:
+            self.assertEqual(*self.actual_expected_contents('index.html', 'index-pygments210.html'))
 
 class Blockquote(IntegrationTestCase):
     def test(self):
         self.run_doxygen(wildcard='indexpage.xml')
-        self.assertEqual(*self.actual_expected_contents('index.html'))
+
+        # Pygments 2.10+ properly highlight Whitespace as such, and not as
+        # Text
+        if parse_version(pygments.__version__) >= parse_version("2.10"):
+            self.assertEqual(*self.actual_expected_contents('index.html'))
+        else:
+            self.assertEqual(*self.actual_expected_contents('index.html', 'index-pygments29.html'))
+
+class HtmlEscape(IntegrationTestCase):
+    def setUp(self):
+        IntegrationTestCase.setUp(self)
+
+        # Doxygen does *almost* a good job of escaping everything, except the
+        # bit in <includes>. Patch that up.
+        for i in [
+            'structClass.xml',
+            'structSub_3_01char_00_01T_01_4.xml',
+            'structSub_3_01char_00_01T_01_4_1_1Nested.xml',
+            # These two are broken only in 1.8.16 and older, the second one
+            # isn't actually used for anything but still produces an error log
+            # if not patched.
+            'Fi_6le_8h.xml',
+            'structSub.xml'
+        ]:
+            with open(os.path.join(self.path, 'xml', i), 'r+') as f:
+                contents = f.read()
+                f.seek(0)
+                f.truncate(0)
+                f.write(contents.replace('Fi&le.h', 'Fi&amp;le.h'))
+
+    def test(self):
+        self.run_doxygen(wildcard='*.xml')
+
+        # Page title escaping, content escaping
+        self.assertEqual(*self.actual_expected_contents('pages.html'))
+
+        # Versions before 1.9.1(?) don't have the alt attribute preserved for
+        # <img>
+        if parse_version(doxygen_version()) >= parse_version("1.9.1"):
+            self.assertEqual(*self.actual_expected_contents('page.html'))
+        else:
+            self.assertEqual(*self.actual_expected_contents('page.html', 'page-1820.html'))
+
+        # Filename escaping
+        self.assertEqual(*self.actual_expected_contents('files.html'))
+        self.assertEqual(*self.actual_expected_contents('Fi_6le_8h.html'))
+
+        # Class name escaping; include, symbol and value escaping
+        self.assertEqual(*self.actual_expected_contents('annotated.html'))
+        self.assertEqual(*self.actual_expected_contents('structClass.html'))
+        self.assertEqual(*self.actual_expected_contents('structSub_3_01char_00_01T_01_4.html'))
+        self.assertEqual(*self.actual_expected_contents('structSub_3_01char_00_01T_01_4_1_1Nested.html'))
+
+    def test_search(self):
+        # Re-run everything with search enabled, the search data shouldn't be
+        # escaped. Not done as part of above as it'd unnecessarily inflate the
+        # size of compared files with the search icon and popup.
+        self.run_doxygen(index_pages=[], wildcard='*.xml', config={
+            'SEARCH_DISABLED': False,
+            'SEARCH_DOWNLOAD_BINARY': True
+        })
+
+        with open(os.path.join(self.path, 'html', searchdata_filename.format(search_filename_prefix='searchdata')), 'rb') as f:
+            serialized = f.read()
+            search_data_pretty = pretty_print(serialized, entryTypeClass=EntryType)[0]
+        # print(search_data_pretty)
+        self.assertEqual(search_data_pretty, """
+8 symbols
+fi&le.h [2]
+||     :$
+||      :functionshouldhavespecializednameescaped<char&> [0]
+||                                                      ($
+||                                                       ) [1]
+|unctionshouldhavespecializednameescaped<char&> [0]
+||                                             ($
+||                                              ) [1]
+page <&> title <&> should be escaped, in the page list also [3]
+class [7]
+|    :$
+|     :enum [4]
+|      suffixshouldbeescaped [5]
+|      |                    ($
+|      |                     ) [6]
+enum [4]
+suffixshouldbeescaped [5]
+| |                  ($
+| |                   ) [6]
+| b<char, t> [8]
+| |         :$
+| |          :nested [9]
+nested [9]
+0: ::functionShouldHaveSpecializedNameEscaped<char&>() [prefix=2[:14], suffix_length=2, type=FUNC] -> #a3b5d61927252197070e8d998f643a2b2
+1:  [prefix=0[:48], type=FUNC] ->
+2: Fi&le.h [type=FILE] -> Fi_6le_8h.html
+3: Page <&> title <&> should be escaped, in the page list also [type=PAGE] -> page.html
+4: ::Enum [prefix=7[:16], type=ENUM] -> #abc566500394204b1aff6106bb4559e18
+5: ::suffixShouldBeEscaped(const Type<char>::ShouldBeEscaped&) && [prefix=7[:16], suffix_length=39, type=FUNC] -> #a0dbbef222ebfc3607c4ad7283ec260c3
+6:  [prefix=5[:50], suffix_length=37, type=FUNC] ->
+7: Class [type=STRUCT] -> structClass.html
+8: Sub<char, T> [type=STRUCT] -> structSub_3_01char_00_01T_01_4.html
+9: ::Nested [prefix=8[:30], type=STRUCT] -> _1_1Nested.html
+(EntryType.PAGE, CssClass.SUCCESS, 'page'),
+(EntryType.NAMESPACE, CssClass.PRIMARY, 'namespace'),
+(EntryType.GROUP, CssClass.SUCCESS, 'group'),
+(EntryType.CLASS, CssClass.PRIMARY, 'class'),
+(EntryType.STRUCT, CssClass.PRIMARY, 'struct'),
+(EntryType.UNION, CssClass.PRIMARY, 'union'),
+(EntryType.TYPEDEF, CssClass.PRIMARY, 'typedef'),
+(EntryType.DIR, CssClass.WARNING, 'dir'),
+(EntryType.FILE, CssClass.WARNING, 'file'),
+(EntryType.FUNC, CssClass.INFO, 'func'),
+(EntryType.DEFINE, CssClass.INFO, 'define'),
+(EntryType.ENUM, CssClass.PRIMARY, 'enum'),
+(EntryType.ENUM_VALUE, CssClass.DEFAULT, 'enum val'),
+(EntryType.VAR, CssClass.DEFAULT, 'var')
+""".strip())

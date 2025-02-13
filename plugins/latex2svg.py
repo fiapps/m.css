@@ -1,13 +1,29 @@
-#!/usr/bin/env python3
-"""latex2svg
-
-Read LaTeX code from stdin and render a SVG using LaTeX + dvisvgm.
-"""
-__version__ = '0.1.0'
-__author__ = 'Tino Wagner'
-__email__ = 'ich@tinowagner.com'
-__license__ = 'MIT'
-__copyright__ = '(c) 2017, Tino Wagner'
+#
+#   This file is part of m.css.
+#
+#   Copyright © 2017 Tino Wagner <ich@tinowagner.com>
+#   Copyright © 2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024, 2025
+#             Vladimír Vondruš <mosra@centrum.cz>
+#   Copyright © 2017 gotchafr <gotchafr@users.noreply.github.com>
+#
+#   Permission is hereby granted, free of charge, to any person obtaining a
+#   copy of this software and associated documentation files (the "Software"),
+#   to deal in the Software without restriction, including without limitation
+#   the rights to use, copy, modify, merge, publish, distribute, sublicense,
+#   and/or sell copies of the Software, and to permit persons to whom the
+#   Software is furnished to do so, subject to the following conditions:
+#
+#   The above copyright notice and this permission notice shall be included
+#   in all copies or substantial portions of the Software.
+#
+#   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+#   IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+#   FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
+#   THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+#   LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+#   FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+#   DEALINGS IN THE SOFTWARE.
+#
 
 import os
 import sys
@@ -64,21 +80,34 @@ if not hasattr(os.environ, 'LIBGS') and not libgs:
 # 2023, remove after enough time passes if no similar case happens in other
 # distros
 elif '.so.10' in str(libgs):
+    # If dvisvgm seems to be at least 3.0, don't even attempt to find libgs and
+    # just assume it works
+    dvisvgm_is_new_enough = False
+    try:
+        ret = subprocess.run(['dvisvgm', '--version'], stdout=subprocess.PIPE)
+        if b'dvisvgm 3' in ret.stdout:
+            dvisvgm_is_new_enough = True
+    except:
+        pass
+
     # Just winging it here, there doesn't seem to be an easy way to get the
     # actual full path the library was found in -- ctypes/util.py does crazy
     # stuff like invoking gcc (!!) to get the library filename.
     #
     # On Arch /usr/lib64 is a symlink to /usr/lib, so only the former is
     # needed; on Fedora it's two distinct directories and libgs is in the
-    # latter (ugh).
-    prefixes = ['/usr/lib', '/usr/lib64']
-    for prefix in prefixes:
-        libgs_absolute = os.path.join(prefix, libgs)
-        if os.path.exists(libgs_absolute):
-            default_params['libgs'] = libgs_absolute
-            break
-    else:
-        raise RuntimeError('libgs found by linker magic, but is not in {}'.format(' or '.join(prefixes)))
+    # latter (ugh). Elsewhere it might be /usr/lib/x86_64-linux-gnu or just
+    # anything else, so let's just bet that dvisvgm is 3.0+ in most cases and
+    # this gets hit only very rarely.
+    if not dvisvgm_is_new_enough:
+        prefixes = ['/usr/lib', '/usr/lib64']
+        for prefix in prefixes:
+            libgs_absolute = os.path.join(prefix, libgs)
+            if os.path.exists(libgs_absolute):
+                default_params['libgs'] = libgs_absolute
+                break
+        else:
+            raise RuntimeError('libgs found by linker magic, but is not in {}'.format(' or '.join(prefixes)))
 
 def latex2svg(code, params=default_params, working_directory=None):
     """Convert LaTeX to SVG using dvisvgm.
